@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wrap-Around Snake Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #2c3e50;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            border: 4px solid #34495e;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let snake = [
+            {x: 10, y: 10},
+        ];
+        let food = {x: 15, y: 15};
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+
+        const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        bgGradient.addColorStop(0, '#3498db');
+        bgGradient.addColorStop(1, '#2980b9');
+
+        const snakePattern = ctx.createPattern(createSnakeTexture(), 'repeat');
+
+        document.addEventListener('keydown', changeDirection);
+
+        function changeDirection(event) {
+            const LEFT_KEY = 37;
+            const RIGHT_KEY = 39;
+            const UP_KEY = 38;
+            const DOWN_KEY = 40;
+
+            const keyPressed = event.keyCode;
+            const goingUp = dy === -1;
+            const goingDown = dy === 1;
+            const goingRight = dx === 1;
+            const goingLeft = dx === -1;
+
+            if (keyPressed === LEFT_KEY && !goingRight) {
+                dx = -1;
+                dy = 0;
+            }
+            if (keyPressed === UP_KEY && !goingDown) {
+                dx = 0;
+                dy = -1;
+            }
+            if (keyPressed === RIGHT_KEY && !goingLeft) {
+                dx = 1;
+                dy = 0;
+            }
+            if (keyPressed === DOWN_KEY && !goingUp) {
+                dx = 0;
+                dy = 1;
+            }
+        }
+
+        function drawGame() {
+            clearCanvas();
+            moveSnake();
+            drawFood();
+            drawSnake();
+            drawScore();
+
+            if (gameOver()) {
+                showGameOver();
+                return;
+            }
+
+            setTimeout(drawGame, 100);
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < tileCount; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, 0);
+                ctx.lineTo(i * gridSize, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+        }
+
+        function drawSnake() {
+            snake.forEach((segment, index) => {
+                ctx.fillStyle = snakePattern;
+                ctx.beginPath();
+                ctx.arc((segment.x + 0.5) * gridSize, (segment.y + 0.5) * gridSize, gridSize / 2 - 1, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = '#27ae60';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                if (index === 0) {
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc((segment.x + 0.3) * gridSize, (segment.y + 0.3) * gridSize, 3, 0, 2 * Math.PI);
+                    ctx.arc((segment.x + 0.7) * gridSize, (segment.y + 0.3) * gridSize, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.arc((segment.x + 0.3) * gridSize, (segment.y + 0.3) * gridSize, 1.5, 0, 2 * Math.PI);
+                    ctx.arc((segment.x + 0.7) * gridSize, (segment.y + 0.3) * gridSize, 1.5, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function drawFood() {
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc((food.x + 0.5) * gridSize, (food.y + 0.5) * gridSize, gridSize / 2 - 1, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#2ecc71';
+            ctx.beginPath();
+            ctx.moveTo((food.x + 0.7) * gridSize, (food.y + 0.3) * gridSize);
+            ctx.quadraticCurveTo((food.x + 0.8) * gridSize, (food.y + 0.1) * gridSize, (food.x + 1) * gridSize, (food.y + 0.2) * gridSize);
+            ctx.quadraticCurveTo((food.x + 0.8) * gridSize, (food.y + 0.3) * gridSize, (food.x + 0.7) * gridSize, (food.y + 0.3) * gridSize);
+            ctx.fill();
+        }
+
+        function moveSnake() {
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            
+            head.x = (head.x + tileCount) % tileCount;
+            head.y = (head.y + tileCount) % tileCount;
+
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                generateFood();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function generateFood() {
+            food.x = Math.floor(Math.random() * tileCount);
+            food.y = Math.floor(Math.random() * tileCount);
+        }
+
+        function gameOver() {
+            for (let i = 1; i < snake.length; i++) {
+                if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) return true;
+            }
+            return false;
+        }
+
+        function drawScore() {
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 20px Arial';
+            ctx.fillText(`Score: ${score}`, 10, 30);
+        }
+
+        function showGameOver() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 50px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 25);
+
+            ctx.font = 'bold 30px Arial';
+            ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 + 25);
+
+            ctx.font = '20px Arial';
+            ctx.fillText('Press Space to Restart', canvas.width / 2, canvas.height / 2 + 60);
+
+            document.addEventListener('keydown', restartGame);
+        }
+
+        function restartGame(event) {
+            if (event.keyCode === 32) { // Space key
+                snake = [{x: 10, y: 10}];
+                food = {x: 15, y: 15};
+                dx = 0;
+                dy = 0;
+                score = 0;
+                document.removeEventListener('keydown', restartGame);
+                drawGame();
+            }
+        }
+
+        function createSnakeTexture() {
+            const snakeTexture = document.createElement('canvas');
+            snakeTexture.width = snakeTexture.height = 20;
+            const stCtx = snakeTexture.getContext('2d');
+            stCtx.fillStyle = '#2ecc71';
+            stCtx.fillRect(0, 0, 20, 20);
+            stCtx.fillStyle = '#27ae60';
+            stCtx.fillRect(0, 0, 10, 10);
+            stCtx.fillRect(10, 10, 10, 10);
+            return snakeTexture;
+        }
+
+        drawGame();
+    </script>
+</body>
+</html>
